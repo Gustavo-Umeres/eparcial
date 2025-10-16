@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle de Postulación{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="card-title">Postulación de {{ application.applicant.username }}</h1>
+                    <a href="{% url 'received_applications' %}" class="btn btn-secondary">Volver</a>
+                </div>
+                
+                <p><strong>Correo Electrónico:</strong> {{ application.applicant.email }}</p>
+                <p><strong>CV:</strong> <a href="{{ application.cv.url }}" class="btn btn-sm btn-info text-white" target="_blank">Ver CV</a></p>
+
+                <hr class="my-4">
+                
+                <h3>Respuestas a Preguntas</h3>
+                <ul class="list-group list-group-flush">
+                    {% for answer in answers %}
+                        <li class="list-group-item">
+                            <strong>{{ answer.question.text }}</strong>
+                            <p>{{ answer.answer_text }}</p>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item text-muted">No hay respuestas a preguntas.</li>
+                    {% endfor %}
+                </ul>
+
+                <hr class="my-4">
+                
+                <div class="d-flex justify-content-start gap-2">
+                    <form action="{% url 'update_application_status' application.id 'accepted' %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-lg">Aceptar Postulación</button>
+                    </form>
+                    
+                    <form action="{% url 'update_application_status' application.id 'rejected' %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-lg">Rechazar Postulación</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

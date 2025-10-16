@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Mis Ofertas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Mis Ofertas de Empleo</h1>
+    <a href="{% url 'create_job_posting' %}" class="btn btn-success">Crear Nueva Oferta</a>
+</div>
+{% for message in messages %}
+    <div class="alert alert-success">{{ message }}</div>
+{% endfor %}
+<div class="list-group">
+    {% for job in jobs %}
+        <div class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <h5 class="mb-1">{{ job.title }}</h5>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'edit_job_posting' job.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
+                    <button type="button" class="btn btn-sm btn-outline-danger delete-btn" data-bs-toggle="modal" data-bs-target="#deleteModal" data-job-id="{{ job.id }}">Eliminar</button>
+                </div>
+            </div>
+            <p class="mb-1">{{ job.description|truncatechars:100 }}</p>
+            <small class="text-muted">{{ job.applications.count }} Postulaciones</small>
+        </div>
+    {% empty %}
+        <div class="alert alert-info" role="alert">
+            Aún no has publicado ninguna oferta.
+        </div>
+    {% endfor %}
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que quieres eliminar esta oferta? Esta acción no se puede deshacer.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="delete-form" method="post" action="">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const deleteModal = document.getElementById('deleteModal');
+    deleteModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const jobId = button.getAttribute('data-job-id');
+        const form = deleteModal.querySelector('#delete-form');
+        form.action = `/jobs/delete/${jobId}/`;
+    });
+});
+</script>
+{% endblock %}

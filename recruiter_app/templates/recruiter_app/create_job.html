@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}Publicar Nueva Oportunidad{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow p-4">
+                <h1 class="card-title text-center mb-4">Publicar Nueva Oportunidad</h1>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ job_form.title.id_for_label }}" class="form-label">Título del puesto</label>
+                        {{ job_form.title }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ job_form.description.id_for_label }}" class="form-label">Descripción</label>
+                        {{ job_form.description }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ job_form.salary.id_for_label }}" class="form-label">Salario</label>
+                            {{ job_form.salary }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ job_form.min_education.id_for_label }}" class="form-label">Educación mínima</label>
+                            {{ job_form.min_education }}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h3>Preguntas Personalizadas</h3>
+                    <div id="questions-container">
+                        {{ question_formset.management_form }}
+                        {% for form_q in question_formset %}
+                            <div class="card mb-3 p-3 question-form">
+                                <div class="d-flex justify-content-end">
+                                    <button type="button" class="btn btn-sm btn-danger remove-question">Quitar pregunta</button>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-8">
+                                        {{ form_q.text.label_tag }}
+                                        {{ form_q.text }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        {{ form_q.question_type.label_tag }}
+                                        {{ form_q.question_type }}
+                                    </div>
+                                </div>
+                                <div class="options-container mt-3" {% if form_q.question_type.value != 'closed' %}style="display:none;"{% endif %}>
+                                    <h6 class="text-muted">Opciones de respuesta</h6>
+                                    <div class="options-list">
+                                        {% if form_q.instance.pk %}
+                                            {% for option in form_q.instance.options.all %}
+                                                <div class="input-group mb-2 option-input">
+                                                    <input type="text" class="form-control" placeholder="Texto de la opción" value="{{ option.text }}">
+                                                    <button class="btn btn-outline-danger remove-option" type="button">Quitar</button>
+                                                </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary add-option mt-2">Añadir opción</button>
+                                    <input type="hidden" name="options_for_{{ form_q.prefix }}" class="options-input">
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="button" id="add-question" class="btn btn-secondary mt-3">Añadir Pregunta</button>
+                    
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">Publicar Oferta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<template id="question-template">
+    <div class="card mb-3 p-3 question-form">
+        <div class="d-flex justify-content-end">
+            <button type="button" class="btn btn-sm btn-danger remove-question">Quitar pregunta</button>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label for="" class="form-label">Pregunta</label>
+                <input type="text" class="form-control" name="questions-__prefix__-text">
+            </div>
+            <div class="col-md-4">
+                <label for="" class="form-label">Tipo de pregunta</label>
+                <select name="questions-__prefix__-question_type" class="form-select">
+                    <option value="open">Respuesta abierta</option>
+                    <option value="closed">Respuesta cerrada</option>
+                </select>
+            </div>
+        </div>
+        <div class="options-container mt-3" style="display:none;">
+            <h6 class="text-muted">Opciones de respuesta</h6>
+            <div class="options-list">
+                </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary add-option mt-2">Añadir opción</button>
+            <input type="hidden" name="options_for_questions-__prefix__" class="options-input">
+        </div>
+    </div>
+</template>
+
+<template id="option-template">
+    <div class="input-group mb-2 option-input">
+        <input type="text" class="form-control" placeholder="Texto de la opción">
+        <button class="btn btn-outline-danger remove-option" type="button">Quitar</button>
+    </div>
+</template>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const questionsContainer = document.getElementById('questions-container');
+    const addQuestionButton = document.getElementById('add-question');
+    const totalFormsInput = document.querySelector('input[name="questions-TOTAL_FORMS"]');
+    const questionTemplate = document.getElementById('question-template').innerHTML;
+    const optionTemplate = document.getElementById('option-template').innerHTML;
+
+    // Helper para actualizar el campo oculto
+    const updateOptionsInput = (questionForm) => {
+        const optionsInput = questionForm.querySelector('.options-input');
+        const optionInputs = questionForm.querySelectorAll('.options-list input[type="text"]');
+        const optionValues = Array.from(optionInputs).map(input => input.value).filter(Boolean);
+        optionsInput.value = optionValues.join('||');
+    };
+
+    // Helper para reindexar los formularios
+    const updateIndices = () => {
+        questionsContainer.querySelectorAll('.question-form').forEach((questionForm, q_index) => {
+            const prefix = `questions-${q_index}`;
+            questionForm.querySelectorAll('input, select, label').forEach(input => {
+                if (input.id) input.id = input.id.replace(/questions-\d+-/, `${prefix}-`);
+                if (input.name) input.name = input.name.replace(/questions-\d+-/, `${prefix}-`);
+                if (input.htmlFor) input.htmlFor = input.htmlFor.replace(/questions-\d+-/, `${prefix}-`);
+            });
+            questionForm.querySelector('.options-input').name = `options_for_${prefix}`;
+        });
+        totalFormsInput.value = questionsContainer.querySelectorAll('.question-form').length;
+    };
+
+    // Lógica para añadir una nueva pregunta
+    addQuestionButton.addEventListener('click', () => {
+        const totalForms = parseInt(totalFormsInput.value);
+        const newFormHtml = questionTemplate.replace(/__prefix__/g, totalForms);
+        questionsContainer.insertAdjacentHTML('beforeend', newFormHtml);
+        totalFormsInput.value = totalForms + 1;
+    });
+
+    // Delegación de eventos
+    questionsContainer.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-question')) {
+            e.target.closest('.question-form').remove();
+            updateIndices();
+        }
+        if (e.target.classList.contains('add-option')) {
+            const optionsList = e.target.closest('.options-container').querySelector('.options-list');
+            optionsList.insertAdjacentHTML('beforeend', optionTemplate);
+        }
+        if (e.target.classList.contains('remove-option')) {
+            const questionForm = e.target.closest('.question-form');
+            e.target.closest('.option-input').remove();
+            updateOptionsInput(questionForm);
+        }
+    });
+
+    questionsContainer.addEventListener('change', (e) => {
+        if (e.target.name && e.target.name.includes('question_type')) {
+            const questionForm = e.target.closest('.question-form');
+            const optionsContainer = questionForm.querySelector('.options-container');
+            if (e.target.value === 'closed') {
+                optionsContainer.style.display = 'block';
+            } else {
+                optionsContainer.style.display = 'none';
+                optionsContainer.querySelector('.options-list').innerHTML = '';
+            }
+        }
+    });
+
+    questionsContainer.addEventListener('input', (e) => {
+        const questionForm = e.target.closest('.question-form');
+        if (e.target.closest('.options-list')) {
+            updateOptionsInput(questionForm);
+        }
+    });
+});
+</script>
+{% endblock %}

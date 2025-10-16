@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Buscar Ofertas{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Buscar Ofertas de Empleo</h1>
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" class="form-control" name="q" placeholder="Buscar por puesto de trabajo..." {% if query %}value="{{ query }}"{% endif %}>
+            <button class="btn btn-primary" type="submit">Buscar</button>
+        </div>
+    </form>
+    
+    <div class="list-group">
+        {% for job in jobs %}
+            <div class="list-group-item">
+                <h5 class="mb-1">{{ job.title }}</h5>
+                <p class="mb-1">{{ job.description|truncatechars:150 }}</p>
+                <small class="text-muted">Salario: {{ job.salary }}</small>
+                <br>
+                <a href="{% url 'apply_to_job' job.id %}" class="btn btn-sm btn-success mt-2">Postular</a>
+            </div>
+        {% empty %}
+            <div class="alert alert-warning" role="alert">
+                No se encontraron ofertas que coincidan con tu búsqueda.
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

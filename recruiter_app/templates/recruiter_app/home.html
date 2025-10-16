@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Feria de Empleabilidad UNTELS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Estilos CSS para el centrado vertical y horizontal */
+        html, body {
+            height: 100%;
+        }
+        body {
+            background-color: #f8f9fa; /* Un gris claro suave */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .hero-section {
+            background-color: #ffffff;
+            padding: 80px 0;
+            border-bottom: 1px solid #e9ecef;
+            width: 100%;
+        }
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #343a40;
+        }
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: #6c757d;
+        }
+        .btn-custom {
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 50px;
+        }
+        .btn-primary-custom {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary-custom:hover {
+            background-color: #0056b3;
+            border-color: #004085;
+        }
+        .btn-outline-primary-custom {
+            color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-outline-primary-custom:hover {
+            color: #ffffff;
+            background-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+
+    <main class="w-100">
+        <div class="container-fluid hero-section">
+            <div class="row align-items-center justify-content-center">
+                <div class="col-lg-8 text-center">
+                    <h1 class="hero-title">Feria de Empleabilidad UNTELS</h1>
+                    <p class="hero-subtitle mt-3 mb-5">
+                        Conectamos el talento de nuestros estudiantes y egresados con las mejores oportunidades laborales.
+                    </p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="{% url 'login' %}" class="btn btn-primary btn-custom btn-primary-custom">Iniciar Sesión</a>
+                        <button type="button" class="btn btn-outline-primary btn-custom btn-outline-primary-custom" data-bs-toggle="modal" data-bs-target="#signupModal">
+                            Crear Cuenta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade" id="signupModal" tabindex="-1" aria-labelledby="signupModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="signupModalLabel">Crear Cuenta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <p class="mb-4">¿Qué tipo de usuario eres?</p>
+                    <div class="d-grid gap-3 col-8 mx-auto">
+                        <a href="{% url 'register_student' %}" class="btn btn-success btn-lg">Soy Estudiante</a>
+                        <a href="{% url 'register_company' %}" class="btn btn-info btn-lg text-white">Soy Empresa</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="card shadow p-5">
+                {% if user.is_company %}
+                    <h1 class="display-4">¡Bienvenido, Reclutador {{ user.username }}! 👋</h1>
+                    <p class="lead mt-4">Listo para encontrar el mejor talento.</p>
+                {% else %}
+                    <h1 class="display-4">¡Bienvenido, Estudiante {{ user.username }}! 👋</h1>
+                    <p class="lead mt-4">Explora las ofertas y da el siguiente paso en tu carrera.</p>
+                {% endif %}
+                <div class="mt-4">
+                    <form action="{% url 'logout' %}" method="post" class="d-inline">
+                        {% csrf_token %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

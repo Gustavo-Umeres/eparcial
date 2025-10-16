@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Postular a {{ job.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow p-4">
+                <h1 class="card-title text-center mb-4">Postular a {{ job.title }}</h1>
+                <p class="text-center">Completa el formulario para enviar tu postulación.</p>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <h3>Datos Personales y CV</h3>
+                    <div class="mb-3">
+                        {{ application_form.cv.label_tag }}
+                        {{ application_form.cv }}
+                    </div>
+
+                    <hr class="my-4">
+                    <h3>Preguntas de la Empresa</h3>
+                    <div id="answers-container">
+                        {% for question in questions %}
+                            <div class="mb-3">
+                                <label class="form-label"><strong>{{ question.text }}</strong></label>
+                                {% if question.question_type == 'open' %}
+                                    <textarea name="answer_text_{{ question.id }}" class="form-control" rows="3" required></textarea>
+                                {% elif question.question_type == 'closed' %}
+                                    <div class="mt-2">
+                                        {% for option in question.options.all %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="answer_text_{{ question.id }}" value="{{ option.text }}" required>
+                                                <label class="form-check-label">{{ option.text }}</label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-success btn-lg">Enviar Postulación</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
