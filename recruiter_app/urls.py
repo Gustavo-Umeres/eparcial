@@ -27,4 +27,5 @@ urlpatterns = [
     path('my-applications/', views.my_applications, name='my_applications'),
     path('search-jobs/', views.search_jobs, name='search_jobs'),
     path('apply/<int:job_id>/', views.apply_to_job, name='apply_to_job'),
+    path('application/delete/<int:application_id>/', views.delete_application, name='delete_application'),
 ]

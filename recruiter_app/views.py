@@ -8,7 +8,7 @@ from django.forms import modelformset_factory
 from .models import JobPosting, Question, Application, Answer, CustomUser, QuestionOption
 from .forms import JobPostingForm, QuestionForm, ApplicationForm, StudentRegistrationForm, CompanyRegistrationForm, AnswerForm
 
-# Formset para la creación y edición de ofertas
+# Formsets para la creación y edición de ofertas
 QuestionFormSet = modelformset_factory(Question, form=QuestionForm, extra=1, can_delete=True)
 
 def home(request):
@@ -69,7 +69,7 @@ def create_job_posting(request):
             job.save()
             
             for form_q in question_formset:
-                if form_q.is_valid() and form_q.cleaned_data:
+                if form_q.is_valid() and form_q.cleaned_data and not form_q.cleaned_data.get('DELETE'):
                     question = form_q.save(commit=False)
                     question.job_posting = job
                     question.save()
@@ -82,14 +82,15 @@ def create_job_posting(request):
             return redirect('list_jobs')
     else:
         job_form = JobPostingForm()
+        # Para crear una oferta, el `formset` debe tener al menos una pregunta en blanco.
         question_formset = QuestionFormSet(queryset=Question.objects.none(), prefix='questions')
-
-    context = {
-        'job_form': job_form,
-        'question_formset': question_formset,
-    }
+        # Lógica para añadir una pregunta en blanco
+        extra_form = QuestionFormSet(queryset=Question.objects.none(), prefix='questions')
+        context = {
+            'job_form': job_form,
+            'question_formset': extra_form,
+        }
     return render(request, 'recruiter_app/create_job.html', context)
-
 @login_required
 def list_job_postings(request):
     """Muestra una lista de ofertas creadas por el usuario actual."""
@@ -99,26 +100,42 @@ def list_job_postings(request):
 @login_required
 def edit_job_posting(request, job_id):
     job = get_object_or_404(JobPosting, id=job_id, recruiter=request.user)
+    
     if request.method == 'POST':
         job_form = JobPostingForm(request.POST, instance=job)
-        question_formset = QuestionFormSet(request.POST, prefix='questions', queryset=job.questions.all())
+        # Asegúrate de pasar el queryset correcto al formset
+        question_formset = QuestionFormSet(request.POST, prefix='questions', queryset=Question.objects.filter(job_posting=job))
 
         if job_form.is_valid() and question_formset.is_valid():
             job_form.save()
             
+            # Guardamos las preguntas y sus opciones
             for form_q in question_formset:
-                if form_q.is_valid() and form_q.cleaned_data:
-                    question = form_q.save(commit=False)
-                    question.job_posting = job
-                    question.save()
+                if form_q.is_valid():
+                    # Si el formulario está marcado para borrarse, se elimina la instancia
+                    if form_q.cleaned_data.get('DELETE'):
+                        if form_q.instance.pk: # Solo si ya existe en la BD
+                            form_q.instance.delete()
+                        continue # Pasa al siguiente formulario
 
-                    if question.question_type == 'closed':
-                        options_text = request.POST.get(f'options_for_{form_q.prefix}', '')
-                        if options_text:
-                            question.options.all().delete()
-                            for option_text in options_text.split('||'):
-                                QuestionOption.objects.create(question=question, text=option_text.strip())
+                    # Procesa solo si el formulario tiene datos (evita guardar formularios vacíos)
+                    if form_q.cleaned_data and form_q.has_changed():
+                        question = form_q.save(commit=False)
+                        question.job_posting = job
+                        question.save() # <-- ¡PASO CLAVE! Guarda la pregunta para obtener un ID.
 
+                        # Ahora que 'question' tiene un ID, podemos gestionar sus opciones
+                        if question.question_type == 'closed':
+                            options_text = request.POST.get(f'options_for_{form_q.prefix}', '')
+                            
+                            # Borramos las opciones antiguas para luego crear las nuevas (más simple)
+                            question.options.all().delete() 
+                            
+                            if options_text:
+                                for option_text in options_text.split('||'):
+                                    if option_text.strip(): # Evita guardar opciones vacías
+                                        QuestionOption.objects.create(question=question, text=option_text.strip())
+            
             messages.success(request, 'La oferta se ha actualizado correctamente.')
             return redirect('list_jobs')
     else:
@@ -131,7 +148,6 @@ def edit_job_posting(request, job_id):
         'job': job
     }
     return render(request, 'recruiter_app/edit_job.html', context)
-
 
 @login_required
 def delete_job_posting(request, job_id):
@@ -157,45 +173,46 @@ def received_applications(request):
 
 @login_required
 def view_applications(request, job_id):
-    """Muestra todas las postulaciones para una oferta específica."""
+    """Shows all applications for a specific job posting."""
     job = get_object_or_404(JobPosting, id=job_id, recruiter=request.user)
     applications = job.applications.all()
     return render(request, 'recruiter_app/applications.html', {'job': job, 'applications': applications})
 
-
 @login_required
 def view_application_detail(request, application_id):
-    """Muestra los detalles completos de una sola postulación, a menos que ya haya sido aceptada o rechazada."""
+    """Displays the full details of a single application."""
     application = get_object_or_404(Application, id=application_id)
-    
-    # Lógica para verificar el estado de la postulación
-    if application.status != 'pending':
-        messages.warning(request, f'La postulación de {application.applicant.username} ya ha sido procesada.')
-        return redirect('received_applications')
-    
     answers = application.answers.all()
-    context = {
-        'application': application,
-        'answers': answers,
-    }
-    return render(request, 'recruiter_app/application_detail.html', context)
-
+    return render(request, 'recruiter_app/application_detail.html', {'application': application, 'answers': answers})
 
 @login_required
 def update_application_status(request, application_id, status):
-    """Actualiza el estado de una postulación (aceptada o rechazada)."""
+    """Updates the status of an application (accepted or rejected)."""
     application = get_object_or_404(Application, id=application_id)
     
     if request.method == 'POST':
         if status in ['accepted', 'rejected']:
             application.status = status
             application.save()
-            messages.success(request, f'Postulación {status} correctamente.')
-            
-            # --- CORRECCIÓN AQUÍ ---
+            messages.success(request, f'La postulación de {application.applicant.username} ha sido {status} correctamente.')
             return redirect('received_applications') 
     
     return redirect('view_application_detail', application_id=application.id)
+
+@login_required
+def delete_application(request, application_id):
+    """Permite al reclutador eliminar una postulación."""
+    app = get_object_or_404(Application, id=application_id)
+    
+    # Verificamos si el usuario actual es el reclutador de la oferta
+    if request.user == app.job_posting.recruiter:
+        if request.method == 'POST':
+            app.delete()
+            messages.success(request, 'La postulación se ha eliminado correctamente.')
+            return redirect('received_applications')
+    
+    messages.error(request, 'No tienes permiso para realizar esta acción.')
+    return redirect('received_applications')
 
 # ---
 # Búsqueda de Empleo y Postulaciones (Estudiantes)
@@ -236,9 +253,7 @@ def apply_to_job(request, job_id):
             application.applicant = request.user
             application.save()
             
-            # Procesar las respuestas de las preguntas
             for question in job.questions.all():
-                # Use a single, consistent name for all answer fields
                 answer_text = request.POST.get(f'answer_text_{question.id}', '')
                 if answer_text:
                     Answer.objects.create(application=application, question=question, answer_text=answer_text)
@@ -256,37 +271,4 @@ def apply_to_job(request, job_id):
         'questions': questions,
     }
     return render(request, 'recruiter_app/apply_to_job.html', context)
-    """Maneja el proceso de postulación a una oferta."""
-    job = get_object_or_404(JobPosting, id=job_id)
-    
-    if request.method == 'POST':
-        application_form = ApplicationForm(request.POST, request.FILES)
-        
-        if application_form.is_valid():
-            application = application_form.save(commit=False)
-            application.job_posting = job
-            application.applicant = request.user
-            application.save()
-            
-            for question in job.questions.all():
-                if question.question_type == 'open':
-                    answer_text = request.POST.get(f'answer_text_open_{question.id}')
-                    if answer_text:
-                        Answer.objects.create(application=application, question=question, answer_text=answer_text)
-                elif question.question_type == 'closed':
-                    answer_text = request.POST.get(f'answer_text_closed_{question.id}')
-                    if answer_text:
-                        Answer.objects.create(application=application, question=question, answer_text=answer_text)
-            
-            return redirect('my_applications')
-    else:
-        application_form = ApplicationForm()
-    
-    questions = job.questions.all()
-    
-    context = {
-        'job': job,
-        'application_form': application_form,
-        'questions': questions,
-    }
-    return render(request, 'recruiter_app/apply_to_job.html', context)
+

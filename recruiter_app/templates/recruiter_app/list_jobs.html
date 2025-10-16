@@ -7,9 +7,6 @@
     <h1>Mis Ofertas de Empleo</h1>
     <a href="{% url 'create_job_posting' %}" class="btn btn-success">Crear Nueva Oferta</a>
 </div>
-{% for message in messages %}
-    <div class="alert alert-success">{{ message }}</div>
-{% endfor %}
 <div class="list-group">
     {% for job in jobs %}
         <div class="list-group-item list-group-item-action">

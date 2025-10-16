@@ -10,6 +10,20 @@
                 <h1 class="card-title text-center mb-4">Editar Oferta</h1>
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
+
+                    {% if job_form.errors or question_formset.non_form_errors %}
+                        <div class="alert alert-danger">
+                            <strong>Por favor, corrige los siguientes errores:</strong>
+                            <ul class="mb-0">
+                                {% for error in job_form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                                {% for error in question_formset.non_form_errors %}<li>{{ error }}</li>{% endfor %}
+                            </ul>
+                            {% if job_form.errors %}
+                                <p class="mt-2 mb-0">Detalles:</p>
+                                {{ job_form.errors.as_ul }}
+                            {% endif %}
+                        </div>
+                    {% endif %}
                     {{ job_form.as_p }}
 
                     <hr class="my-4">
@@ -18,6 +32,14 @@
                     <div id="questions-container">
                         {% for form_q in question_formset %}
                             <div class="card mb-3 p-3 question-form">
+                                {{ form_q.id }}
+                                <div style="display: none;">{{ form_q.DELETE }}</div>
+
+                                {% if form_q.errors %}
+                                    <div class="alert alert-warning p-2">
+                                        {{ form_q.errors }}
+                                    </div>
+                                {% endif %}
                                 <div class="d-flex justify-content-end">
                                     <button type="button" class="btn btn-sm btn-danger remove-question">Quitar pregunta</button>
                                 </div>
@@ -63,17 +85,22 @@
 
 <template id="question-template">
     <div class="card mb-3 p-3 question-form">
+        <input type="hidden" name="questions-__prefix__-id">
+        <div style="display: none;">
+            <input type="checkbox" name="questions-__prefix__-DELETE" id="id_questions-__prefix__-DELETE">
+        </div>
+        
         <div class="d-flex justify-content-end">
             <button type="button" class="btn btn-sm btn-danger remove-question">Quitar pregunta</button>
         </div>
         <div class="row g-3">
             <div class="col-md-8">
-                <label for="" class="form-label">Pregunta</label>
-                <input type="text" class="form-control" name="questions-__prefix__-text">
+                <label for="id_questions-__prefix__-text" class="form-label">Pregunta</label>
+                <input type="text" class="form-control" name="questions-__prefix__-text" id="id_questions-__prefix__-text">
             </div>
             <div class="col-md-4">
-                <label for="" class="form-label">Tipo de pregunta</label>
-                <select name="questions-__prefix__-question_type" class="form-select">
+                <label for="id_questions-__prefix__-question_type" class="form-label">Tipo de pregunta</label>
+                <select name="questions-__prefix__-question_type" class="form-select" id="id_questions-__prefix__-question_type">
                     <option value="open">Respuesta abierta</option>
                     <option value="closed">Respuesta cerrada</option>
                 </select>
@@ -81,14 +108,12 @@
         </div>
         <div class="options-container mt-3" style="display:none;">
             <h6 class="text-muted">Opciones de respuesta</h6>
-            <div class="options-list">
-                </div>
+            <div class="options-list"></div>
             <button type="button" class="btn btn-sm btn-outline-secondary add-option mt-2">Añadir opción</button>
             <input type="hidden" name="options_for_questions-__prefix__" class="options-input">
         </div>
     </div>
 </template>
-
 <template id="option-template">
     <div class="input-group mb-2 option-input">
         <input type="text" class="form-control" placeholder="Texto de la opción">
@@ -104,7 +129,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const questionTemplate = document.getElementById('question-template').innerHTML;
     const optionTemplate = document.getElementById('option-template').innerHTML;
 
-    // Helper para actualizar el campo oculto
     const updateOptionsInput = (questionForm) => {
         const optionsInput = questionForm.querySelector('.options-input');
         const optionInputs = questionForm.querySelectorAll('.options-list input[type="text"]');
@@ -112,22 +136,9 @@ document.addEventListener('DOMContentLoaded', function() {
         optionsInput.value = optionValues.join('||');
     };
 
-    // Helper para reindexar los formularios
-    const updateIndices = () => {
-        questionsContainer.querySelectorAll('.question-form').forEach((questionForm, q_index) => {
-            const prefix = `questions-${q_index}`;
-            questionForm.querySelectorAll('input, select, label').forEach(input => {
-                if (input.id) input.id = input.id.replace(/questions-\d+-/, `${prefix}-`);
-                if (input.name) input.name = input.name.replace(/questions-\d+-/, `${prefix}-`);
-                if (input.htmlFor) input.htmlFor = input.htmlFor.replace(/questions-\d+-/, `${prefix}-`);
-            });
-            const optionsInput = questionForm.querySelector('.options-input');
-            if (optionsInput) optionsInput.name = `options_for_${prefix}`;
-        });
-        totalFormsInput.value = questionsContainer.querySelectorAll('.question-form').length;
-    };
+    // No necesitamos reindexar si manejamos la eliminación correctamente.
+    // const updateIndices = () => { ... };
 
-    // Lógica para añadir una nueva pregunta
     addQuestionButton.addEventListener('click', () => {
         const totalForms = parseInt(totalFormsInput.value);
         const newFormHtml = questionTemplate.replace(/__prefix__/g, totalForms);
@@ -135,12 +146,30 @@ document.addEventListener('DOMContentLoaded', function() {
         totalFormsInput.value = totalForms + 1;
     });
 
-    // Delegación de eventos
     questionsContainer.addEventListener('click', (e) => {
+        // ================================================================
+        // INICIO CAMBIO 4: Corregir lógica de eliminación
+        // ================================================================
         if (e.target.classList.contains('remove-question')) {
-            e.target.closest('.question-form').remove();
-            updateIndices();
+            const questionForm = e.target.closest('.question-form');
+            const deleteCheckbox = questionForm.querySelector('input[type="checkbox"][name*="DELETE"]');
+            
+            // Si la pregunta ya existía (tiene un checkbox de borrado)
+            if (deleteCheckbox) {
+                // Lo marcamos y ocultamos el formulario
+                deleteCheckbox.checked = true;
+                questionForm.style.display = 'none';
+            } else {
+                // Si es una pregunta nueva que nunca se guardó, simplemente la quitamos
+                questionForm.remove();
+                // Actualizamos el contador TOTAL_FORMS
+                totalFormsInput.value = document.querySelectorAll('.question-form').length;
+            }
         }
+        // ================================================================
+        // FIN CAMBIO 4
+        // ================================================================
+
         if (e.target.classList.contains('add-option')) {
             const optionsList = e.target.closest('.options-container').querySelector('.options-list');
             optionsList.insertAdjacentHTML('beforeend', optionTemplate);
