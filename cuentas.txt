@@ -1,0 +1,7 @@
+cuenta postulante
+Usuario:EP
+Contraseña:12345
+
+cuenta empresa
+Usuario:EP1
+Contraseña:12345
